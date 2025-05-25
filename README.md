@@ -9,14 +9,14 @@ It perform the export function by interacting directly with the Omeka-s detabase
 In order to perform the export function you need to know the siteslug of the site you want to export.
  
 To list the siteslugs available:
-# php ./uvaimex.php  --action="siteslug" --config="omaka-s-dabacase.ini-location"
+$ php ./uvaimex.php  --action="siteslug" --config="omaka-s-dabacase.ini-location"
 
 To export a site use this sintax:
-# php ./uvaimex.php --action="export" --siteslug="the-site-slug-you-want-to-export" --file="export-file-name" --config="omaka-s-dabacase.ini-location"
+$ php ./uvaimex.php --action="export" --siteslug="the-site-slug-you-want-to-export" --file="export-file-name" --config="omaka-s-dabacase.ini-location"
 
 Once a site has been exported you can import it into another Omake-s installation.
 To import a site use this sintax:
-# php ./uvaimex.php  --action="import" --file="import-file-name" --config="omaka-s-dabacase.ini-location"
+$ php ./uvaimex.php  --action="import" --file="import-file-name" --config="omaka-s-dabacase.ini-location"
 
 Because new versions of Omeka-s and modules installed might modify the database, it is recommended that both sites are upgraded to the same version of both the core Omeka-s version and the installed modules.
 In addition both sites should have an identical set of mudules installed.
@@ -26,10 +26,10 @@ Additional Options and Considerations
 -------------------------------------
 
 Sometimes it might be useful to check the modules versions and active theme from the command line, this command will list the installed modules and versions in a given installation:
-# php ./uvaimex.php  --action="info" --config="omaka-s-dabacase.ini-location"
+$ php ./uvaimex.php  --action="info" --config="omaka-s-dabacase.ini-location"
 
 This command will list the installed modules and versions stored in a given exported file:
-# php ./uvaimex.php  --action="info" --file="import-file-name"
+$ php ./uvaimex.php  --action="info" --file="import-file-name"
 
 Always make sure you have a backup of the database and files of you Omeka-s installation before running this script.
 
@@ -37,7 +37,7 @@ When importing a site you might find an issue with writing the assets and item f
 This is because this directory needs to be writable by apache or nginx or whatevrr webserver is being used and might not be writable by the user running the script. In this situation you could temporarily change the permissions of this directory and allow the user running the script to write files in that directory, another option is to write the files elesewhere and move them after the script has ran, consult with your IT to detrmine what is teh best option.
 If you choose to write the files in a different location and move then later you need to add an additional configuration option when running the import script.
 
-# php ./uvaimex.php  --action="import" --file="import-file-name" --config="omaka-s-dabacase.ini-location" --writefiles="directory-where-the-files-should-be-written"
+$ php ./uvaimex.php  --action="import" --file="import-file-name" --config="omaka-s-dabacase.ini-location" --writefiles="directory-where-the-files-should-be-written"
 
 Another possible issue you might encounter is an out of memory error, which would look something like this: "PHP Fatal error:  Allowed memory size of 134217728 bytes exhausted (tried to allocate 42426368 bytes)".
 This kind of error can occur when a site you are exporting is too large compared to the amount of memory allocated to php in your system.
