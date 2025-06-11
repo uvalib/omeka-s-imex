@@ -1,5 +1,5 @@
 <?php
-// Uvaimex, version 1.0
+// Uvaimex, version 1.0.1
 
 // path to the ini file of the two omeka-s sites
 error_reporting(E_ERROR | E_WARNING | E_PARSE);
@@ -8,7 +8,6 @@ iconv_set_encoding('output_encoding', 'UTF-8');
 set_error_handler('error_handler');
 date_default_timezone_set('America/New_York');
 ini_set('memory_limit','2G');
-
 
 
 $options = getopt('',array('help', 'test', 'action:', 'siteslug:', 'file:', 'config:', ':writefiles'));
@@ -318,6 +317,15 @@ function uvaimex_export($options,$db,$preferences) {
     if ($value['owner_id'] != NULL) {
       $user_id[$value['owner_id']] = $value['owner_id'];
     }
+    $navigation = json_decode($data['site'][$key]['navigation'],true);
+    foreach ($navigation as $ky => $nav) {
+      if ($nav['type'] == 'browse') {
+        if (preg_match('/^item_set_id%5B%5D=(\d+)/', $nav['data']['query'], $match)) {
+          $item_set_id[$match[1]] = $match[1];
+        }
+      }
+    }
+    unset($navigation);
   }
 
   
@@ -549,7 +557,7 @@ function uvaimex_export($options,$db,$preferences) {
   // item_set
   $data['item_set'] = array();
   if (count($item_set_id) > 0) {
-    $query = $db->prepare("SELECT * FROM `item_set` WHERE `item_set_id` IN (".implode(',', $item_set_id).") ");
+    $query = $db->prepare("SELECT * FROM `item_set` WHERE `id` IN (".implode(',', $item_set_id).") ");
     if ($query->execute()) {
       while($row = $query->fetch(PDO::FETCH_ASSOC)) {
         $data['item_set'][$row['id']] = $row;
@@ -636,7 +644,7 @@ function uvaimex_export($options,$db,$preferences) {
   // item_set second round
   //$data['item_set'] = array();
   if (count($item_set_id) > 0) {
-    $query = $db->prepare("SELECT * FROM `item_set` WHERE `item_set_id` IN (".implode(',', $item_set_id).") ");
+    $query = $db->prepare("SELECT * FROM `item_set` WHERE `id` IN (".implode(',', $item_set_id).") ");
     if ($query->execute()) {
       while($row = $query->fetch(PDO::FETCH_ASSOC)) {
         $data['item_set'][$row['id']] = $row;
@@ -881,6 +889,49 @@ function uvaimex_export($options,$db,$preferences) {
   }
 
 
+
+
+ 
+
+
+  // resource_template
+  $data['resource_template'] = array();
+  if (count($resource_template_id) > 0) {
+    $query = $db->prepare("SELECT * FROM `resource_template` WHERE `id` IN (".implode(',', $resource_template_id).") ");
+    if ($query->execute()) {
+      while($row = $query->fetch(PDO::FETCH_ASSOC)) {
+       if ($row['resource_class_id'] != NULL) {
+          $resource_class_id[$row['resource_class_id']] = $row['resource_class_id'];
+        }
+        $resource_template_id[$row['id']] = $row['id'];
+        $data['resource_template'][$row['id']] = $row;
+        $user_id[$row['owner_id']] = $row['owner_id'];
+      }
+    }
+  }
+  // insert resource_template into uvaimexguid table
+  foreach ($data['resource_template'] as $key => $value) {
+    $data['resource_template'][$key]['resource_template_guid'] = false;
+    $query = $db->prepare("SELECT `guid` FROM `uvaimexguid` WHERE `relatedID` = :related_id AND `related_table` = 'resource_template' ");
+    $query->bindValue(':related_id', $data['resource_template'][$key]['id'], PDO::PARAM_INT);
+    if ($query->execute()) {
+      while($row = $query->fetch(PDO::FETCH_ASSOC)) {
+        $data['resource_template'][$key]['resource_template_guid'] = $row['guid'];
+      }
+    }
+    if ($data['resource_template'][$key]['resource_template_guid'] === false) {
+      $data['resource_template'][$key]['resource_template_guid'] = $guid.'-'._generate_guid();
+      $query = $db->prepare("INSERT INTO `uvaimexguid` SET `guid` = :guid, `relatedID` = :related_id, `related_table` = 'resource_template' ");
+      $query->bindValue(':guid', $data['resource_template'][$key]['resource_template_guid'], PDO::PARAM_STR);
+      $query->bindValue(':related_id', $data['resource_template'][$key]['id'], PDO::PARAM_INT);
+      $query->execute();
+    }
+    $guid_to_id['resource_template'][$data['resource_template'][$key]['resource_template_guid']] = $data['resource_template'][$key]['id'];
+    $id_to_guid['resource_template'][$data['resource_template'][$key]['id']] = $data['resource_template'][$key]['resource_template_guid'];
+  }
+
+
+
   // resource_class
   $data['resource_class'] = array();
   if (count($resource_class_id) > 0) {
@@ -913,44 +964,6 @@ function uvaimex_export($options,$db,$preferences) {
     $guid_to_id['resource_class'][$data['resource_class'][$key]['resource_class_guid']] = $data['resource_class'][$key]['id'];
     $id_to_guid['resource_class'][$data['resource_class'][$key]['id']] = $data['resource_class'][$key]['resource_class_guid'];
   }
-
-
-
-
-
-  // resource_template
-  $data['resource_template'] = array();
-  if (count($resource_template_id) > 0) {
-    $query = $db->prepare("SELECT * FROM `resource_template` WHERE `id` IN (".implode(',', $resource_template_id).") ");
-    if ($query->execute()) {
-      while($row = $query->fetch(PDO::FETCH_ASSOC)) {
-        $resource_template_id[$row['id']] = $row['id'];
-        $data['resource_template'][$row['id']] = $row;
-        $user_id[$row['owner_id']] = $row['owner_id'];
-      }
-    }
-  }
-  // insert resource_template into uvaimexguid table
-  foreach ($data['resource_template'] as $key => $value) {
-    $data['resource_template'][$key]['resource_template_guid'] = false;
-    $query = $db->prepare("SELECT `guid` FROM `uvaimexguid` WHERE `relatedID` = :related_id AND `related_table` = 'resource_template' ");
-    $query->bindValue(':related_id', $data['resource_template'][$key]['id'], PDO::PARAM_INT);
-    if ($query->execute()) {
-      while($row = $query->fetch(PDO::FETCH_ASSOC)) {
-        $data['resource_template'][$key]['resource_template_guid'] = $row['guid'];
-      }
-    }
-    if ($data['resource_template'][$key]['resource_template_guid'] === false) {
-      $data['resource_template'][$key]['resource_template_guid'] = $guid.'-'._generate_guid();
-      $query = $db->prepare("INSERT INTO `uvaimexguid` SET `guid` = :guid, `relatedID` = :related_id, `related_table` = 'resource_template' ");
-      $query->bindValue(':guid', $data['resource_template'][$key]['resource_template_guid'], PDO::PARAM_STR);
-      $query->bindValue(':related_id', $data['resource_template'][$key]['id'], PDO::PARAM_INT);
-      $query->execute();
-    }
-    $guid_to_id['resource_template'][$data['resource_template'][$key]['resource_template_guid']] = $data['resource_template'][$key]['id'];
-    $id_to_guid['resource_template'][$data['resource_template'][$key]['id']] = $data['resource_template'][$key]['resource_template_guid'];
-  }
-
 
 
 
@@ -1272,7 +1285,13 @@ function uvaimex_export($options,$db,$preferences) {
       foreach ($navigation as $ky => $nav) {
         if ($nav['type'] == 'page') {
           $navigation[$ky]['data']['id'] = $id_to_guid['site_page'][$navigation[$ky]['data']['id']];
+        } else if ($nav['type'] == 'browse') {
+          if (preg_match('/^item_set_id%5B%5D=(\d+)/', $navigation[$ky]['data']['query'], $match)) {
+            $navigation[$ky]['data']['query'] = str_replace('item_set_id%5B%5D='.$match[1], 'item_set_id%5B%5D=ITEM_SET_ID', $navigation[$ky]['data']['query']);
+            $navigation[$ky]['data']['item_set_guid'] = $id_to_guid['item_set'][$match[1]];
+          }
         }
+        
         if (isset($navigation[$ky]['links']) && is_array($navigation[$ky]['links']) && count($navigation[$ky]['links'])) {
           foreach ($navigation[$ky]['links'] as $k => $n) {
             if ($n['type'] == 'page') {
@@ -2540,6 +2559,8 @@ function uvaimex_import($options,$db,$preferences) {
         foreach ($navigation as $ky => $nav) {
           if ($nav['type'] == 'page') {
             $navigation[$ky]['data']['id'] = $guid_to_id['site_page'][$navigation[$ky]['data']['id']];
+          } else if ($nav['type'] == 'browse') {
+            $navigation[$ky]['data']['query'] = str_replace('ITEM_SET_ID',  $guid_to_id['item_set'][$navigation[$ky]['data']['item_set_guid']],$navigation[$ky]['data']['query']);      
           }
           if (isset($navigation[$ky]['links']) && is_array($navigation[$ky]['links']) && count($navigation[$ky]['links'])) {
             foreach ($navigation[$ky]['links'] as $k => $n) {
